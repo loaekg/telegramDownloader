@@ -39,7 +39,7 @@ def download_video(url: str, platform: str) -> str:
             return os.path.join(output_path, f"{video_title}.{video_ext}")
 
 # Replace 'YOUR_TOKEN_HERE' with your actual bot token
-TOKEN = '7165421942:AAEsKZ_kww5p323ktgQ2RH8TnDeAQ13snLc'
+TOKEN = 'INSERT_UR_TOKEN'
 bot = telebot.TeleBot(TOKEN)
 
 @bot.message_handler(commands=['start'])
