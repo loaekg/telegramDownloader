@@ -38,7 +38,7 @@ def download_video(url: str, platform: str) -> str:
             video_ext = info_dict.get('ext', None)
             return os.path.join(output_path, f"{video_title}.{video_ext}")
 
-# Replace 'YOUR_TOKEN_HERE' with your actual bot token
+# Here My Token Should Be Inserted.
 TOKEN = 'INSERT_UR_TOKEN'
 bot = telebot.TeleBot(TOKEN)
 
