@@ -2,7 +2,10 @@ import telebot
 import re
 import os
 import yt_dlp
-from pytube import YouTube
+import logging
+
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def detect_media_platform(url: str) -> str:
     youtube_pattern = re.compile(r'(https?://)?(www\.)?(youtube|youtu\.be)(\.com)?/.*')
@@ -21,25 +24,34 @@ def detect_media_platform(url: str) -> str:
     else:
         return "Unknown"
 
-def download_video(url: str, platform: str) -> str:
+def get_next_filename(output_path: str, prefix: str, extension: str = '.mp4') -> str:
+
+    index = 1
+    while True:
+        filename = f"{prefix}{index}{extension}"
+        if not os.path.exists(os.path.join(output_path, filename)):
+            return os.path.join(output_path, filename)
+        index += 1
+
+def download_mp4(url: str) -> str:
+
     output_path = "downloads"
     os.makedirs(output_path, exist_ok=True)
+    file_path = get_next_filename(output_path, 'video', '.mp4') 
+    ydl_opts = {
+        'outtmpl': file_path,  
+        'format': 'bestvideo+bestaudio/best'
+    }
 
-    if platform == "YouTube":
-        yt = YouTube(url)
-        stream = yt.streams.filter(progressive=True, file_extension='mp4').first()
-        stream.download(output_path)
-        return os.path.join(output_path, stream.default_filename)
-    else:
-        ydl_opts = {'outtmpl': os.path.join(output_path, '%(title)s.%(ext)s')}
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(url, download=True)
-            video_title = info_dict.get('title', None)
-            video_ext = info_dict.get('ext', None)
-            return os.path.join(output_path, f"{video_title}.{video_ext}")
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        ydl.download([url])
+        
+    normalized_path = os.path.normpath(file_path)  
+    logging.info(f"MP4 downloaded: {normalized_path}")
+    return normalized_path
 
-# Here My Token Should Be Inserted.
-TOKEN = 'INSERT_UR_TOKEN'
+
+TOKEN = 'Token'
 bot = telebot.TeleBot(TOKEN)
 
 @bot.message_handler(commands=['start'])
@@ -53,11 +65,18 @@ def handle_message(message):
     if platform == "Unknown":
         bot.reply_to(message, "Unsupported or unknown URL. Please provide a valid link from YouTube, Instagram, Facebook, or Twitter/X.")
     else:
-        bot.reply_to(message, f"Downloading video from {platform}...")
-        video_path = download_video(url, platform)
-        with open(video_path, 'rb') as video:
-            bot.send_video(message.chat.id, video)
-        os.remove(video_path)
+        try:
+            bot.reply_to(message, f"Downloading video from {platform}...")
+            video_path = download_mp4(url)
+            logging.info(f"Normalized path for sending: {video_path}")
+            with open(video_path, 'rb') as video:
+                normalized_video_path = os.path.normpath(video_path)
+                logging.info(f"Sending video from normalized path: {normalized_video_path}")
+                bot.send_video(message.chat.id, video)
+            os.remove(normalized_video_path)
+        except Exception as e:
+            logging.error(f"Error occurred: {e}")
+            bot.reply_to(message, f"An error occurred while downloading the video: {e}")
 
 if __name__ == "__main__":
     bot.polling()
